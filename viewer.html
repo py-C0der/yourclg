@@ -1,0 +1,2476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Viewer - BTechX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css?v=16.9">
+  <link rel="icon" type="image/png" href="logo.png?v=7">
+  <!-- PDF.js Library (Local for ultra-fast instant loading) -->
+  <script src="assets/js/pdf.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden;
+      background-color: #000000;
+      color: #ffffff;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .viewer-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Top Navigation Bar - Ultra-Slim, Frameless & Minimalist */
+    .viewer-header {
+      height: 44px;
+      min-height: 44px;
+      background: rgba(10, 10, 10, 0.96);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 50;
+      gap: 10px;
+    }
+
+    .viewer-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+
+    .viewer-brand {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: rgba(255, 255, 255, 0.75);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s ease;
+    }
+
+    .viewer-brand:hover {
+      color: #ffffff;
+    }
+
+    .viewer-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e4e4e7;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 240px;
+      letter-spacing: 0.2px;
+    }
+
+    /* Center Navigation (Pages) */
+    .viewer-header-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .page-nav-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      user-select: none;
+    }
+
+    .page-indicator {
+      font-size: 12px;
+      font-weight: 500;
+      color: #a1a1aa;
+      padding: 0 6px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Right Section: Tools, Zoom, Download */
+    .viewer-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Clean Frameless Icon Action Buttons (NO bulky boxes) */
+    .viewer-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      outline: none;
+      color: #d4d4d8;
+      cursor: pointer;
+      text-decoration: none;
+      padding: 6px;
+      line-height: 1;
+      touch-action: manipulation;
+      will-change: transform, color, filter;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  filter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 15px;
+    }
+
+    .viewer-icon-btn:hover {
+      color: #ffffff;
+      transform: scale(1.18);
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.45));
+    }
+
+    .viewer-icon-btn:active {
+      transform: scale(0.9) !important;
+    }
+
+    .viewer-icon-btn:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+      transform: none !important;
+      filter: none !important;
+    }
+
+    /* Highlight Mode Button - Glowing Accent when Active */
+    .viewer-icon-btn.highlight-active {
+      color: #facc15 !important;
+      transform: scale(1.18);
+      filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.85)) !important;
+    }
+
+    /* Download Icon */
+    .viewer-download-icon {
+      font-size: 17px;
+      color: #ffffff;
+    }
+
+    .viewer-download-icon:hover {
+      color: #ffffff;
+      transform: scale(1.22);
+      filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
+    }
+
+    /* Secondary Tools: External & Fullscreen */
+    .viewer-tool-icon {
+      font-size: 14px;
+      color: #71717a;
+    }
+
+    .viewer-tool-icon:hover {
+      color: #e4e4e7;
+    }
+
+    /* --- VIEW MODE DROPDOWN MENU --- */
+    .view-mode-wrapper {
+      position: relative;
+    }
+
+    .mode-dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      background: rgba(18, 18, 22, 0.98);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 6px;
+      width: 240px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      z-index: 100;
+      animation: modeFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modeFadeIn {
+      from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .mode-dropdown.open {
+      display: flex;
+    }
+
+    .mode-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #a1a1aa;
+      transition: all 0.18s ease;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .mode-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+    }
+
+    .mode-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    .mode-item-icon {
+      font-size: 15px;
+      width: 18px;
+      text-align: center;
+      color: #e4e4e7;
+    }
+
+    .mode-item.active .mode-item-icon {
+      color: #38bdf8;
+    }
+
+    .mode-item-text {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .mode-item-title {
+      font-size: 12.5px;
+      color: inherit;
+    }
+
+    .mode-item-desc {
+      font-size: 10.5px;
+      color: #71717a;
+    }
+
+    .mode-check {
+      font-size: 12px;
+      color: #38bdf8;
+      display: none;
+    }
+
+    .mode-item.active .mode-check {
+      display: block;
+    }
+
+    /* --- MAIN PDF VIEWER CONTAINER --- */
+    .viewer-main {
+      flex: 1;
+      position: relative;
+      background: #09090b;
+      overflow: auto;
+      display: flex;
+      padding: 16px;
+      scroll-behavior: smooth;
+    }
+
+    /* Common PDF Page Container */
+    .page-container {
+      position: relative;
+      background: #ffffff;
+      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      user-select: none;
+      touch-action: pan-x pan-y;
+      transition: box-shadow 0.25s ease, opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: opacity, transform;
+      transform-origin: center center;
+    }
+
+    /* Modern 3D Single Page Transitions */
+    .page-container.turn-slide-left {
+      opacity: 0 !important;
+      transform: translate3d(-36px, 0, -25px) rotateY(-8deg) scale(0.96) !important;
+    }
+
+    .page-container.turn-slide-right {
+      opacity: 0 !important;
+      transform: translate3d(36px, 0, -25px) rotateY(8deg) scale(0.96) !important;
+    }
+
+    .page-container.highlighting-mode {
+      cursor: crosshair !important;
+      user-select: none;
+    }
+
+    .page-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
+
+    /* Highlight Control Group & Color Palette Pill */
+    .highlight-control-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+    }
+
+    .highlight-palette-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(18, 18, 22, 0.96);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 20px;
+      padding: 3px 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+      animation: hlFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes hlFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .hl-color-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--c);
+      cursor: pointer;
+      border: 2px solid transparent;
+      outline: none;
+      padding: 0;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+      box-shadow: 0 0 8px var(--c);
+    }
+
+    .hl-color-dot:hover {
+      transform: scale(1.3);
+    }
+
+    .hl-color-dot.active {
+      border-color: #ffffff;
+      transform: scale(1.22);
+      box-shadow: 0 0 12px var(--c), inset 0 0 3px rgba(255, 255, 255, 0.9);
+    }
+
+    /* Highlight Layer overlay */
+    .highlight-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    /* Individual Highlight Item - Luminous Neon Glow Underlay with Pure Black Text Protection */
+    .pdf-highlight {
+      position: absolute;
+      border-radius: 3.5px;
+      cursor: pointer;
+      pointer-events: auto;
+      mix-blend-mode: multiply;
+      backdrop-filter: brightness(1.04) contrast(1.15);
+      border-left: 2px solid var(--hl-border);
+      border-right: 2px solid var(--hl-border);
+      background: var(--hl-bg);
+      box-shadow: 0 0 10px var(--hl-glow), inset 0 0 5px var(--hl-inner);
+      transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s ease;
+    }
+
+    /* Color variations for glowing highlights */
+    .pdf-highlight.hl-yellow, .pdf-highlight:not([class*="hl-"]) {
+      --hl-bg: linear-gradient(180deg, rgba(255, 235, 59, 0.34) 0%, rgba(255, 224, 0, 0.44) 60%, rgba(255, 214, 0, 0.38) 100%);
+      --hl-glow: rgba(255, 220, 0, 0.6);
+      --hl-inner: rgba(255, 245, 120, 0.4);
+      --hl-border: rgba(234, 179, 8, 0.95);
+    }
+
+    .pdf-highlight.hl-cyan {
+      --hl-bg: linear-gradient(180deg, rgba(34, 211, 238, 0.34) 0%, rgba(6, 182, 212, 0.44) 60%, rgba(14, 165, 233, 0.38) 100%);
+      --hl-glow: rgba(6, 182, 212, 0.62);
+      --hl-inner: rgba(165, 243, 252, 0.4);
+      --hl-border: rgba(14, 165, 233, 0.95);
+    }
+
+    .pdf-highlight.hl-green {
+      --hl-bg: linear-gradient(180deg, rgba(74, 222, 128, 0.34) 0%, rgba(34, 197, 94, 0.44) 60%, rgba(16, 185, 129, 0.38) 100%);
+      --hl-glow: rgba(34, 197, 94, 0.6);
+      --hl-inner: rgba(187, 247, 208, 0.4);
+      --hl-border: rgba(16, 185, 129, 0.95);
+    }
+
+    .pdf-highlight.hl-pink {
+      --hl-bg: linear-gradient(180deg, rgba(244, 114, 182, 0.34) 0%, rgba(236, 72, 153, 0.44) 60%, rgba(225, 29, 72, 0.38) 100%);
+      --hl-glow: rgba(236, 72, 153, 0.6);
+      --hl-inner: rgba(251, 207, 232, 0.4);
+      --hl-border: rgba(225, 29, 72, 0.95);
+    }
+
+    .pdf-highlight:hover {
+      box-shadow: 0 0 16px var(--hl-glow), 0 0 26px var(--hl-glow), inset 0 0 8px var(--hl-inner);
+      transform: scaleY(1.05);
+    }
+
+    /* Delete badge on highlight hover */
+    .pdf-highlight .hl-del-btn {
+      display: none;
+      position: absolute;
+      top: -9px;
+      right: -9px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      z-index: 30;
+      animation: delPopIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes delPopIn {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .pdf-highlight:hover .hl-del-btn {
+      display: flex;
+    }
+
+    /* Live Preview Rectangle when dragging to highlight */
+    .highlight-preview-rect {
+      position: absolute;
+      border-radius: 3.5px;
+      pointer-events: none;
+      z-index: 25;
+      mix-blend-mode: multiply;
+      border: 1.5px dashed var(--hl-border);
+      background: var(--hl-bg);
+      box-shadow: 0 0 10px var(--hl-glow);
+    }
+
+    .highlight-preview-rect.hl-yellow, .highlight-preview-rect:not([class*="hl-"]) {
+      --hl-bg: linear-gradient(180deg, rgba(255, 235, 59, 0.34) 0%, rgba(255, 224, 0, 0.44) 60%, rgba(255, 214, 0, 0.38) 100%);
+      --hl-glow: rgba(255, 220, 0, 0.6);
+      --hl-border: rgba(234, 179, 8, 0.95);
+    }
+
+    .highlight-preview-rect.hl-cyan {
+      --hl-bg: linear-gradient(180deg, rgba(34, 211, 238, 0.34) 0%, rgba(6, 182, 212, 0.44) 60%, rgba(14, 165, 233, 0.38) 100%);
+      --hl-glow: rgba(6, 182, 212, 0.62);
+      --hl-border: rgba(14, 165, 233, 0.95);
+    }
+
+    .highlight-preview-rect.hl-green {
+      --hl-bg: linear-gradient(180deg, rgba(74, 222, 128, 0.34) 0%, rgba(34, 197, 94, 0.44) 60%, rgba(16, 185, 129, 0.38) 100%);
+      --hl-glow: rgba(34, 197, 94, 0.6);
+      --hl-border: rgba(16, 185, 129, 0.95);
+    }
+
+    .highlight-preview-rect.hl-pink {
+      --hl-bg: linear-gradient(180deg, rgba(244, 114, 182, 0.34) 0%, rgba(236, 72, 153, 0.44) 60%, rgba(225, 29, 72, 0.38) 100%);
+      --hl-glow: rgba(236, 72, 153, 0.6);
+      --hl-border: rgba(225, 29, 72, 0.95);
+    }
+
+    /* Mode 1: Continuous Scroll Container */
+    .scroll-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      margin: auto;
+      padding: 10px 0 30px 0;
+      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center top;
+      will-change: transform;
+    }
+
+    .scroll-page-slot {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .scroll-page-slot .page-container {
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+    }
+
+    .scroll-page-badge {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      background: rgba(10, 10, 12, 0.85);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 15;
+    }
+
+    .scroll-page-slot:hover .scroll-page-badge {
+      opacity: 1;
+    }
+
+    /* Mode 2: Two Pages Book Flip (Photorealistic 3D) */
+    .book-outer-wrapper {
+      margin: auto;
+      perspective: 2500px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      padding: 10px 0;
+    }
+
+    .book-viewport {
+      display: flex;
+      position: relative;
+      background: #ffffff;
+      border-radius: 6px;
+      /* Realistic Multi-Page Stack Edge + Depth Shadows */
+      box-shadow: 
+        0 24px 60px rgba(0, 0, 0, 0.9),
+        0 8px 24px rgba(0, 0, 0, 0.6),
+        -5px 0 0 -1px #ebebed,
+        -9px 0 0 -2px #dddddf,
+        -13px 0 0 -3px #cfcfd2,
+        5px 0 0 -1px #ebebed,
+        9px 0 0 -2px #dddddf,
+        13px 0 0 -3px #cfcfd2;
+      transform-style: preserve-3d;
+      transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Center Book Fold Spine - High-End Realism with Dual Crease Highlights */
+    .book-spine {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 46px;
+      transform: translateX(-50%);
+      background: linear-gradient(to right,
+        rgba(0,0,0,0.30) 0%,
+        rgba(0,0,0,0.10) 30%,
+        rgba(255,255,255,0.12) 50%,
+        rgba(0,0,0,0.10) 70%,
+        rgba(0,0,0,0.30) 100%
+      );
+      box-shadow: 0 0 12px rgba(0,0,0,0.25);
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    .book-page-half {
+      position: relative;
+      overflow: hidden;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+
+    .book-left {
+      box-shadow: inset -16px 0 30px -10px rgba(0, 0, 0, 0.28), inset 0 0 20px rgba(0,0,0,0.03);
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      cursor: pointer;
+    }
+
+    .book-right {
+      box-shadow: inset 16px 0 30px -10px rgba(0, 0, 0, 0.28), inset 0 0 20px rgba(0,0,0,0.03);
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Interactive Page Peeling Cues on Edge Hover */
+    .book-right::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.2) 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      border-bottom-right-radius: 6px;
+    }
+
+    .book-right:hover::after {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+
+    .book-left::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(225deg, transparent 50%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.2) 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      border-bottom-left-radius: 6px;
+    }
+
+    .book-left:hover::after {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+
+    /* 3D Flipping Sheet Layer - Curved Spine Shading & Realistic Physics */
+    .book-flip-sheet {
+      position: absolute;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      transform-style: preserve-3d;
+      display: none;
+      z-index: 25;
+      pointer-events: none;
+      will-change: transform;
+      filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.45));
+    }
+
+    .book-flip-sheet.flip-forward {
+      left: 50%;
+      transform-origin: left center;
+    }
+
+    .book-flip-sheet.flip-backward {
+      left: 0;
+      transform-origin: right center;
+    }
+
+    .flip-face {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .flip-face canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .flip-back {
+      transform: rotateY(180deg);
+    }
+
+    .flip-shadow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0;
+      will-change: opacity;
+    }
+
+    .flip-front .flip-shadow {
+      background: linear-gradient(to right,
+        rgba(0,0,0,0.45) 0%,
+        rgba(255,255,255,0.16) 30%,
+        rgba(0,0,0,0.12) 65%,
+        transparent 95%
+      );
+    }
+
+    .flip-back .flip-shadow {
+      background: linear-gradient(to left,
+        rgba(0,0,0,0.45) 0%,
+        rgba(255,255,255,0.16) 30%,
+        rgba(0,0,0,0.12) 65%,
+        transparent 95%
+      );
+    }
+
+    /* Mode 3: Single Page Fit/Slide */
+    .single-page-wrapper {
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 2000px;
+    }
+
+    /* Fallback Iframe */
+    .viewer-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #ffffff;
+      display: block;
+      flex: 1;
+    }
+
+    /* States (Loading & Error) */
+    .viewer-state {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #050505;
+      z-index: 10;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .viewer-state i.fa-spinner {
+      color: #ffffff;
+      margin-bottom: 16px;
+    }
+
+    .viewer-state p {
+      color: #a1a1aa;
+      font-size: 14px;
+    }
+
+    .error-card {
+      background: rgba(18, 18, 22, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 40px 30px;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .error-icon {
+      font-size: 3.2rem;
+      color: #ef4444;
+      margin-bottom: 18px;
+    }
+
+    .error-card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 10px;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .error-card p {
+      color: #a1a1aa;
+      font-size: 13.5px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .error-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13.5px;
+      text-decoration: none;
+      transition: all 0.25s ease;
+    }
+
+    .error-back-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* Floating Toast Indicator */
+    .viewer-toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(24, 24, 27, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #f4f4f5;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .viewer-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .viewer-header {
+        height: 48px;
+        min-height: 48px;
+        padding: 0 8px;
+        gap: 5px;
+      }
+      .viewer-brand {
+        display: none;
+      }
+      .viewer-title {
+        display: none;
+      }
+      .viewer-tool-icon {
+        display: none;
+      }
+      .viewer-icon-btn {
+        min-width: 36px;
+        min-height: 36px;
+        padding: 7px;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .page-indicator {
+        font-size: 11.5px;
+        padding: 0 3px;
+      }
+      .viewer-main {
+        padding: 6px;
+      }
+      .mode-dropdown {
+        right: -20px;
+        width: 220px;
+      }
+    }
+
+    /* Tablet Header (601px - 1024px) */
+    @media (min-width: 601px) and (max-width: 1024px) {
+      .viewer-header {
+        height: 52px;
+        padding: 0 16px;
+        gap: 10px;
+      }
+      .viewer-brand {
+        display: none;
+      }
+      .viewer-title {
+        display: block !important;
+        font-size: 13.5px;
+        max-width: 260px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .viewer-icon-btn {
+        min-width: 40px;
+        min-height: 40px;
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="viewer-layout">
+    <!-- Header -->
+    <header class="viewer-header">
+      <div class="viewer-header-left">
+        <button id="backBtn" class="viewer-icon-btn viewer-back-icon" onclick="handleBack()" title="Back" aria-label="Back">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <a href="index.html" class="viewer-brand">BTechX</a>
+        <h1 id="docTitle" class="viewer-title">Document Viewer</h1>
+      </div>
+
+      <!-- Center: Page Controls -->
+      <div class="viewer-header-center">
+        <div class="page-nav-group" id="pageNavGroup">
+          <button id="prevBtn" class="viewer-icon-btn" onclick="prevPage()" title="Previous Page (Left Arrow)" aria-label="Previous Page">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span id="pageIndicator" class="page-indicator">1 / 1</span>
+          <button id="nextBtn" class="viewer-icon-btn" onclick="nextPage()" title="Next Page (Right Arrow)" aria-label="Next Page">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: View Mode, Highlight, Zoom In/Out/Reset, Download -->
+      <div class="viewer-header-right">
+        <!-- 3-Option Reading View Mode Selector -->
+        <div class="view-mode-wrapper">
+          <button id="modeMenuBtn" class="viewer-icon-btn" onclick="toggleModeMenu(event)" title="Reading Mode Options" aria-label="Reading Mode Options">
+            <i id="modeIcon" class="fas fa-bars-staggered"></i>
+          </button>
+          <div id="modeDropdown" class="mode-dropdown">
+            <!-- Option 1: Continuous Scroll (Default) -->
+            <div class="mode-item active" id="modeItemScroll" onclick="setReadingMode('scroll')">
+              <i class="fas fa-bars-staggered mode-item-icon"></i>
+              <div class="mode-item-text">
+                <span class="mode-item-title">Continuous Scroll</span>
+                <span class="mode-item-desc">Scroll pages vertically (Default)</span>
+              </div>
+              <i class="fas fa-check mode-check"></i>
+            </div>
+            <!-- Option 2: Two Pages Book Flip -->
+            <div class="mode-item" id="modeItemBook" onclick="setReadingMode('book')">
+              <i class="fas fa-book-open mode-item-icon"></i>
+              <div class="mode-item-text">
+                <span class="mode-item-title">Book Flip (2 Pages)</span>
+                <span class="mode-item-desc">Fold &amp; turn page like a real book</span>
+              </div>
+              <i class="fas fa-check mode-check"></i>
+            </div>
+            <!-- Option 3: Single Page Slide -->
+            <div class="mode-item" id="modeItemSingle" onclick="setReadingMode('single')">
+              <i class="fas fa-file-alt mode-item-icon"></i>
+              <div class="mode-item-text">
+                <span class="mode-item-title">Single Page</span>
+                <span class="mode-item-desc">1 page in window &bull; click to advance</span>
+              </div>
+              <i class="fas fa-check mode-check"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Highlight Tool & Color Palette Pill -->
+        <div class="highlight-control-group" id="highlightControlGroup">
+          <button id="highlightBtn" class="viewer-icon-btn" onclick="toggleHighlightMode()" title="Highlight Tool (Click &amp; Drag)" aria-label="Highlight Tool">
+            <i class="fas fa-highlighter"></i>
+          </button>
+          <div class="highlight-palette-pill" id="highlightPalette" style="display: none;">
+            <button class="hl-color-dot active" data-color="yellow" style="--c: #ffe600;" onclick="selectHighlightColor('yellow', event)" title="Electric Gold (Glow)"></button>
+            <button class="hl-color-dot" data-color="cyan" style="--c: #00f0ff;" onclick="selectHighlightColor('cyan', event)" title="Cyber Cyan (Glow)"></button>
+            <button class="hl-color-dot" data-color="green" style="--c: #00ff9d;" onclick="selectHighlightColor('green', event)" title="Mint Emerald (Glow)"></button>
+            <button class="hl-color-dot" data-color="pink" style="--c: #ff3388;" onclick="selectHighlightColor('pink', event)" title="Neon Rose (Glow)"></button>
+          </div>
+        </div>
+
+        <!-- Zoom Controls -->
+        <button id="zoomOutBtn" class="viewer-icon-btn" onclick="zoomOut()" title="Zoom Out (-)" aria-label="Zoom Out">
+          <i class="fas fa-search-minus"></i>
+        </button>
+        <button id="zoomResetBtn" class="viewer-icon-btn" onclick="resetView()" title="Reset (Fit Window)" aria-label="Reset to Fit Window">
+          <i class="fas fa-expand-arrows-alt"></i>
+        </button>
+        <button id="zoomInBtn" class="viewer-icon-btn" onclick="zoomIn()" title="Zoom In (+)" aria-label="Zoom In">
+          <i class="fas fa-search-plus"></i>
+        </button>
+
+        <!-- Secondary: External & Fullscreen -->
+        <a id="externalBtn" href="#" target="_blank" class="viewer-icon-btn viewer-tool-icon" title="Open in New Tab" aria-label="Open in New Tab">
+          <i class="fas fa-external-link-alt"></i>
+        </a>
+        <button id="fullscreenBtn" class="viewer-icon-btn viewer-tool-icon" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle Fullscreen">
+          <i class="fas fa-expand"></i>
+        </button>
+
+        <!-- Prominent Download Button -->
+        <a id="downloadBtn" class="viewer-icon-btn viewer-download-icon" title="Download Document" aria-label="Download Document">
+          <i class="fas fa-download"></i>
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="viewer-main" id="viewerMain">
+      <div id="loadingState" class="viewer-state">
+        <i class="fas fa-spinner fa-spin fa-2x"></i>
+        <p>Loading document...</p>
+      </div>
+
+      <div id="errorState" class="viewer-state" style="display: none;">
+        <div class="error-card">
+          <i class="fas fa-exclamation-circle error-icon"></i>
+          <h2>PDF / Notes Not Available</h2>
+          <p id="errorMessage">This study material or question bank has not been uploaded yet. Please check back later.</p>
+          <button onclick="handleBack()" class="error-back-btn">
+            <i class="fas fa-arrow-left"></i> <span>Return to Previous Page</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Redirect to Google Drive State -->
+      <div id="mobileRedirectState" class="viewer-state" style="display: none;">
+        <div class="error-card" style="border-color: rgba(66, 133, 244, 0.35);">
+          <i class="fab fa-google-drive" style="font-size: 3.5rem; color: #4285f4; margin-bottom: 18px;"></i>
+          <h2>Opening in Google Drive...</h2>
+          <p id="mobileRedirectMsg">Redirecting to Google Drive Viewer for a fast and simple mobile experience.</p>
+          <a id="manualDriveBtn" href="#" class="error-back-btn" style="border-color: rgba(66, 133, 244, 0.4); background: rgba(66, 133, 244, 0.15);">
+            <i class="fas fa-external-link-alt"></i> <span>Open in Google Drive</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Mode 1: Continuous Scroll View Container -->
+      <div id="scrollContainer" class="scroll-container" style="display: none;"></div>
+
+      <!-- Mode 2: Two Pages Book Flip View Container -->
+      <div id="bookContainer" class="book-outer-wrapper" style="display: none;">
+        <div class="book-viewport" id="bookViewport">
+          <div class="book-spine"></div>
+          <!-- Left Static Page -->
+          <div class="book-page-half book-left" id="bookLeft" onclick="onBookLeftClick()">
+            <canvas id="bookCanvasLeft"></canvas>
+            <div class="highlight-layer" id="bookHlLeft"></div>
+          </div>
+          <!-- Right Static Page -->
+          <div class="book-page-half book-right" id="bookRight" onclick="onBookRightClick()">
+            <canvas id="bookCanvasRight"></canvas>
+            <div class="highlight-layer" id="bookHlRight"></div>
+          </div>
+          <!-- 3D Turning Sheet -->
+          <div class="book-flip-sheet" id="bookFlipSheet">
+            <div class="flip-face flip-front" id="flipFront">
+              <canvas id="flipCanvasFront"></canvas>
+              <div class="flip-shadow" id="flipShadowFront"></div>
+            </div>
+            <div class="flip-face flip-back" id="flipBack">
+              <canvas id="flipCanvasBack"></canvas>
+              <div class="flip-shadow" id="flipShadowBack"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode 3: Single Page Fit/Slide Container -->
+      <div id="singleContainer" class="single-page-wrapper" style="display: none;">
+        <div id="pageContainer" class="page-container">
+          <canvas id="pdfCanvas"></canvas>
+          <div id="highlightLayer" class="highlight-layer"></div>
+        </div>
+      </div>
+
+      <!-- Fallback native iframe & embed for local file:// support -->
+      <iframe id="pdfFrame" class="viewer-iframe" style="display: none;" allow="fullscreen"></iframe>
+      <embed id="pdfEmbed" class="viewer-iframe" style="display: none;" type="application/pdf">
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="viewerToast" class="viewer-toast"></div>
+  </div>
+
+  <script>
+    // URL Parameters
+    const params = new URLSearchParams(window.location.search);
+    const fileParam = params.get('file');
+    const titleParam = params.get('title');
+    const refParam = params.get('ref');
+
+    // DOM Elements
+    const docTitle = document.getElementById('docTitle');
+    const viewerMain = document.getElementById('viewerMain');
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const externalBtn = document.getElementById('externalBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageIndicator = document.getElementById('pageIndicator');
+    const highlightBtn = document.getElementById('highlightBtn');
+    const viewerToast = document.getElementById('viewerToast');
+    const modeDropdown = document.getElementById('modeDropdown');
+    const modeIcon = document.getElementById('modeIcon');
+    const pdfFrame = document.getElementById('pdfFrame');
+
+    // Container DOM Elements
+    const scrollContainer = document.getElementById('scrollContainer');
+    const bookContainer = document.getElementById('bookContainer');
+    const bookViewport = document.getElementById('bookViewport');
+    const bookLeft = document.getElementById('bookLeft');
+    const bookRight = document.getElementById('bookRight');
+    const bookCanvasLeft = document.getElementById('bookCanvasLeft');
+    const bookCanvasRight = document.getElementById('bookCanvasRight');
+    const bookHlLeft = document.getElementById('bookHlLeft');
+    const bookHlRight = document.getElementById('bookHlRight');
+    const bookFlipSheet = document.getElementById('bookFlipSheet');
+    const flipCanvasFront = document.getElementById('flipCanvasFront');
+    const flipCanvasBack = document.getElementById('flipCanvasBack');
+    const flipShadowFront = document.getElementById('flipShadowFront');
+    const flipShadowBack = document.getElementById('flipShadowBack');
+
+    const singleContainer = document.getElementById('singleContainer');
+    const pageContainer = document.getElementById('pageContainer');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const highlightLayer = document.getElementById('highlightLayer');
+
+    // State Variables
+    // Mode Options: 'scroll' (Option 1 - Default), 'book' (Option 2), 'single' (Option 3)
+    let currentMode = localStorage.getItem('btechx_pdf_view_mode') || 'scroll';
+    let pdfDoc = null;
+    let totalPages = 1;
+    let currentPage = 1; // 1-based index
+    let currentBookSpread = 1; // Left page of current 2-page book spread
+    let isFlipping = false;
+
+    // Zero-Server-Pressure In-Memory Page Cache (GitHub Pages protected from multiple fetches)
+    const pageProxyCache = new Map();
+    function getCachedPage(pageNum) {
+      if (!pdfDoc) return Promise.reject(new Error('PDF document not loaded'));
+      if (!pageProxyCache.has(pageNum)) {
+        pageProxyCache.set(pageNum, pdfDoc.getPage(pageNum));
+      }
+      return pageProxyCache.get(pageNum);
+    }
+
+    // Zoom Scales & Debounce System for 120fps Smooth Zooming
+    let scaleScroll = 1.0;
+    let scaleBook = 1.0;
+    let scaleSingle = 1.0;
+    let renderedSingleScale = 1.0;
+    let isFitSingle = true;
+    let zoomDebounceTimer = null;
+
+    // Highlighting System with Glowing Colors & Storage
+    let highlightModeActive = false;
+    let currentHighlightColor = localStorage.getItem('btechx_pdf_hl_color') || 'yellow';
+    const highlightPalette = document.getElementById('highlightPalette');
+
+    let cleanPdfPath = '';
+    let toastTimeout = null;
+    let renderedScrollPages = new Set();
+    let scrollObserver = null;
+    let singleRenderTask = null;
+    const activeScrollTasks = new Map();
+
+    // Toast Notification Helper
+    function showToast(msg, duration = 2400) {
+      if (toastTimeout) clearTimeout(toastTimeout);
+      viewerToast.innerHTML = msg;
+      viewerToast.classList.add('show');
+      toastTimeout = setTimeout(() => {
+        viewerToast.classList.remove('show');
+      }, duration);
+    }
+
+    // Set page title
+    if (titleParam) {
+      const cleanTitle = decodeURIComponent(titleParam);
+      docTitle.innerText = cleanTitle;
+      document.title = `${cleanTitle} - BTechX Viewer`;
+    }
+
+    // Contextual fallback based on file path
+    function getContextualFallback(filePath) {
+      if (!filePath) return 'index.html';
+      const fp = decodeURIComponent(filePath).toLowerCase();
+      if (fp.includes('syllabus')) return 'syllabus.html';
+      if (fp.includes('physics')) return '1stYearSub/physics.html';
+      if (fp.includes('math/m1') || fp.includes('math1')) return '1stYearSub/math1.html';
+      if (fp.includes('math/m2') || fp.includes('math2')) return '1stYearSub/math2.html';
+      if (fp.includes('/bee/')) return '1stYearSub/bee.html';
+      if (fp.includes('/iee/')) return '1stYearSub/iee.html';
+      if (fp.includes('/ime/')) return '1stYearSub/ime.html';
+      if (fp.includes('/cse/')) return '1stYearSub/cse.html';
+      if (fp.includes('dmgt')) return '2ndYearSub/dmgt.html';
+      return 'index.html';
+    }
+
+    // Accurate Back navigation
+    function handleBack() {
+      // Check if an update arrived while student was reading PDF
+      try {
+        const pending = localStorage.getItem('btechx_pending_update');
+        if (pending) {
+          localStorage.removeItem('btechx_pending_update');
+          const returnTarget = refParam ? decodeURIComponent(refParam) : (sessionStorage.getItem('btechx_viewer_return_url') || getContextualFallback(fileParam));
+          if (returnTarget && !returnTarget.includes('viewer.html')) {
+            const urlObj = new URL(returnTarget, window.location.origin);
+            urlObj.searchParams.set('v_sync', Date.now());
+            sessionStorage.removeItem('btechx_viewer_return_url');
+            window.location.href = urlObj.toString();
+            return;
+          }
+        }
+      } catch (e) {}
+
+      if (refParam) {
+        try {
+          const decodedRef = decodeURIComponent(refParam);
+          if (decodedRef && !decodedRef.includes('viewer.html')) {
+            window.location.href = decodedRef;
+            return;
+          }
+        } catch (e) {}
+      }
+
+      try {
+        const storedRef = sessionStorage.getItem('btechx_viewer_return_url');
+        if (storedRef && !storedRef.includes('viewer.html')) {
+          sessionStorage.removeItem('btechx_viewer_return_url');
+          window.location.href = storedRef;
+          return;
+        }
+      } catch (e) {}
+
+      if (window.history.length > 1 && document.referrer && !document.referrer.includes('viewer.html')) {
+        window.history.back();
+        return;
+      }
+
+      window.location.href = getContextualFallback(fileParam);
+    }
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.debug(err));
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // --- VIEW MODE SELECTOR DROPDOWN ---
+    function toggleModeMenu(e) {
+      if (e) e.stopPropagation();
+      modeDropdown.classList.toggle('open');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.view-mode-wrapper')) {
+        modeDropdown.classList.remove('open');
+      }
+    });
+
+    function updateModeUI() {
+      document.getElementById('modeItemScroll').classList.toggle('active', currentMode === 'scroll');
+      document.getElementById('modeItemBook').classList.toggle('active', currentMode === 'book');
+      document.getElementById('modeItemSingle').classList.toggle('active', currentMode === 'single');
+
+      if (currentMode === 'scroll') {
+        modeIcon.className = 'fas fa-bars-staggered';
+      } else if (currentMode === 'book') {
+        modeIcon.className = 'fas fa-book-open';
+      } else {
+        modeIcon.className = 'fas fa-file-alt';
+      }
+    }
+
+    function setReadingMode(mode) {
+      if (currentMode === mode && pdfDoc) {
+        modeDropdown.classList.remove('open');
+        return;
+      }
+      currentMode = mode;
+      localStorage.setItem('btechx_pdf_view_mode', mode);
+      updateModeUI();
+      modeDropdown.classList.remove('open');
+
+      if (mode === 'scroll') {
+        showToast('<i class="fas fa-bars-staggered"></i> Continuous Scroll Mode (Default)');
+      } else if (mode === 'book') {
+        showToast('<i class="fas fa-book-open"></i> Book Mode &bull; Click page or arrow to turn');
+      } else {
+        showToast('<i class="fas fa-file-alt"></i> Single Page Mode &bull; 1 Page in Window');
+      }
+
+      applyViewMode();
+    }
+
+    function applyViewMode() {
+      if (!pdfDoc) return;
+
+      scrollContainer.style.display = 'none';
+      bookContainer.style.display = 'none';
+      singleContainer.style.display = 'none';
+
+      if (currentMode === 'scroll') {
+        scrollContainer.style.display = 'flex';
+        initScrollView();
+      } else if (currentMode === 'book') {
+        bookContainer.style.display = 'flex';
+        initBookView();
+      } else {
+        singleContainer.style.display = 'flex';
+        initSingleView();
+      }
+    }
+
+    // --- HIGHLIGHT STORAGE IN BROWSER LOCALSTORAGE ---
+    function getStorageKey() {
+      return `btechx_pdf_hl_${encodeURIComponent(cleanPdfPath)}`;
+    }
+
+    function loadHighlights() {
+      try {
+        const raw = localStorage.getItem(getStorageKey());
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveHighlights(list) {
+      try {
+        localStorage.setItem(getStorageKey(), JSON.stringify(list));
+      } catch (e) {
+        console.warn('LocalStorage save failed', e);
+      }
+    }
+
+    // Color Selection for Glowing Highlights
+    function selectHighlightColor(color, e) {
+      if (e) e.stopPropagation();
+      currentHighlightColor = color;
+      localStorage.setItem('btechx_pdf_hl_color', color);
+      document.querySelectorAll('.hl-color-dot').forEach(dot => {
+        dot.classList.toggle('active', dot.dataset.color === color);
+      });
+      showToast(`<i class="fas fa-palette"></i> Highlight Color: ${color.toUpperCase()} (Glowing Underlay)`);
+    }
+
+    function renderHighlightsInLayer(layerEl, pageNum) {
+      if (!layerEl) return;
+      layerEl.innerHTML = '';
+      const allHighlights = loadHighlights();
+      const pageHighlights = allHighlights.filter(h => h.page === pageNum);
+
+      pageHighlights.forEach(h => {
+        const el = document.createElement('div');
+        const colorClass = h.color ? `hl-${h.color}` : 'hl-yellow';
+        el.className = `pdf-highlight ${colorClass}`;
+        el.dataset.id = h.id;
+        el.style.left = (h.x * 100) + '%';
+        el.style.top = (h.y * 100) + '%';
+        el.style.width = (h.w * 100) + '%';
+        el.style.height = (h.h * 100) + '%';
+
+        const delBtn = document.createElement('span');
+        delBtn.className = 'hl-del-btn';
+        delBtn.innerHTML = '&times;';
+        delBtn.title = 'Delete Highlight';
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteHighlight(h.id);
+        };
+        el.appendChild(delBtn);
+
+        el.onclick = (e) => {
+          e.stopPropagation();
+          deleteHighlight(h.id);
+        };
+
+        layerEl.appendChild(el);
+      });
+    }
+
+    function deleteHighlight(id) {
+      let list = loadHighlights();
+      list = list.filter(h => h.id !== id);
+      saveHighlights(list);
+
+      document.querySelectorAll(`.pdf-highlight[data-id="${id}"]`).forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'scale(0.85)';
+        setTimeout(() => el.remove(), 160);
+      });
+      showToast('<i class="fas fa-trash-alt"></i> Highlight deleted from storage');
+    }
+
+    // Toggle Highlight Mode
+    function toggleHighlightMode() {
+      highlightModeActive = !highlightModeActive;
+      if (highlightModeActive) {
+        highlightBtn.classList.add('highlight-active');
+        if (highlightPalette) highlightPalette.style.display = 'inline-flex';
+        document.querySelectorAll('.page-container').forEach(c => c.classList.add('highlighting-mode'));
+        showToast('<i class="fas fa-highlighter" style="color: #facc15"></i> Highlight Mode ON &bull; Drag over text to highlight with glow');
+      } else {
+        highlightBtn.classList.remove('highlight-active');
+        if (highlightPalette) highlightPalette.style.display = 'none';
+        document.querySelectorAll('.page-container').forEach(c => c.classList.remove('highlighting-mode'));
+        showToast('Highlight Mode OFF');
+      }
+    }
+
+    // Generic Highlight Drag Listener for any container
+    function bindHighlightDragEvents(containerEl, getPageNumFn, getLayerFn) {
+      let isDrawing = false;
+      let startX = 0, startY = 0;
+      let previewEl = null;
+
+      const getContainerPos = (e) => {
+        const rect = containerEl.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: Math.max(0, Math.min(clientX - rect.left, rect.width)),
+          y: Math.max(0, Math.min(clientY - rect.top, rect.height)),
+          rectW: rect.width,
+          rectH: rect.height
+        };
+      };
+
+      const onStart = (e) => {
+        if (!highlightModeActive) return;
+        if (e.target.closest('.hl-del-btn') || e.target.closest('.pdf-highlight')) return;
+
+        const pos = getContainerPos(e);
+        isDrawing = true;
+        startX = pos.x;
+        startY = pos.y;
+
+        const layer = getLayerFn();
+        if (!layer) return;
+
+        previewEl = document.createElement('div');
+        previewEl.className = `highlight-preview-rect hl-${currentHighlightColor}`;
+        previewEl.style.left = startX + 'px';
+        previewEl.style.top = startY + 'px';
+        previewEl.style.width = '0px';
+        previewEl.style.height = '0px';
+        layer.appendChild(previewEl);
+
+        if (e.type === 'touchstart') e.preventDefault();
+      };
+
+      const onMove = (e) => {
+        if (!isDrawing || !previewEl) return;
+        const pos = getContainerPos(e);
+        const left = Math.min(startX, pos.x);
+        const top = Math.min(startY, pos.y);
+        const w = Math.abs(pos.x - startX);
+        const h = Math.abs(pos.y - startY);
+
+        previewEl.style.left = left + 'px';
+        previewEl.style.top = top + 'px';
+        previewEl.style.width = w + 'px';
+        previewEl.style.height = h + 'px';
+
+        if (e.type === 'touchmove') e.preventDefault();
+      };
+
+      const onEnd = (e) => {
+        if (!isDrawing) return;
+        isDrawing = false;
+
+        if (previewEl) {
+          previewEl.remove();
+          previewEl = null;
+        }
+
+        const pos = getContainerPos(e);
+        const left = Math.min(startX, pos.x);
+        const top = Math.min(startY, pos.y);
+        const w = Math.abs(pos.x - startX);
+        const h = Math.abs(pos.y - startY);
+
+        if (w >= 6 && h >= 4 && pos.rectW > 0 && pos.rectH > 0) {
+          const targetPage = getPageNumFn();
+          const newHl = {
+            id: 'hl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            page: targetPage,
+            color: currentHighlightColor,
+            x: left / pos.rectW,
+            y: top / pos.rectH,
+            w: w / pos.rectW,
+            h: h / pos.rectH,
+            date: Date.now()
+          };
+          const list = loadHighlights();
+          list.push(newHl);
+          saveHighlights(list);
+
+          const layer = getLayerFn();
+          if (layer) renderHighlightsInLayer(layer, targetPage);
+          showToast('<i class="fas fa-check-circle" style="color: #4ade80"></i> Glowing highlight saved');
+        }
+      };
+
+      containerEl.addEventListener('mousedown', onStart);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
+
+      containerEl.addEventListener('touchstart', onStart, { passive: false });
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+    }
+
+    // Mode 1: Continuous Scroll View
+    function initScrollView() {
+      if (scrollContainer.children.length === 0) {
+        buildScrollSlots();
+      } else {
+        updateScrollLayout();
+      }
+      updateNavScroll();
+    }
+
+    function buildScrollSlots() {
+      scrollContainer.innerHTML = '';
+      renderedScrollPages.clear();
+
+      getCachedPage(1).then(firstPage => {
+        const unscaled = firstPage.getViewport({ scale: 1.0 });
+        const availW = Math.max(100, Math.min(viewerMain.clientWidth - 40, 920));
+        scaleScroll = availW / unscaled.width;
+
+        const pageW = Math.floor(unscaled.width * scaleScroll);
+        const pageH = Math.floor(unscaled.height * scaleScroll);
+
+        for (let i = 1; i <= totalPages; i++) {
+          const slot = document.createElement('div');
+          slot.className = 'scroll-page-slot';
+          slot.id = `scrollSlot-${i}`;
+          slot.dataset.page = i;
+
+          const pContainer = document.createElement('div');
+          pContainer.className = 'page-container';
+          if (highlightModeActive) pContainer.classList.add('highlighting-mode');
+          pContainer.id = `pageContainer-scroll-${i}`;
+          pContainer.style.width = pageW + 'px';
+          pContainer.style.height = pageH + 'px';
+
+          const cvs = document.createElement('canvas');
+          cvs.id = `scrollCanvas-${i}`;
+
+          const hlLayer = document.createElement('div');
+          hlLayer.className = 'highlight-layer';
+          hlLayer.id = `scrollHl-${i}`;
+
+          const badge = document.createElement('div');
+          badge.className = 'scroll-page-badge';
+          badge.innerText = `Page ${i}`;
+
+          pContainer.appendChild(cvs);
+          pContainer.appendChild(hlLayer);
+          pContainer.appendChild(badge);
+          slot.appendChild(pContainer);
+          scrollContainer.appendChild(slot);
+
+          // Bind highlight drag events for this page
+          bindHighlightDragEvents(pContainer, () => i, () => hlLayer);
+        }
+
+        setupScrollObserver();
+        renderScrollPage(1);
+      });
+    }
+
+    function updateScrollLayout() {
+      if (!pdfDoc) return;
+      getCachedPage(1).then(firstPage => {
+        const unscaled = firstPage.getViewport({ scale: 1.0 });
+        const pageW = Math.floor(unscaled.width * scaleScroll);
+        const pageH = Math.floor(unscaled.height * scaleScroll);
+
+        for (let i = 1; i <= totalPages; i++) {
+          const pContainer = document.getElementById(`pageContainer-scroll-${i}`);
+          if (pContainer) {
+            pContainer.style.width = pageW + 'px';
+            pContainer.style.height = pageH + 'px';
+          }
+        }
+        renderedScrollPages.clear();
+        renderingScrollPages.clear();
+        renderScrollPage(currentPage);
+      });
+    }
+
+    function setupScrollObserver() {
+      if (scrollObserver) scrollObserver.disconnect();
+
+      scrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const pageNum = parseInt(entry.target.dataset.page);
+            renderScrollPage(pageNum);
+          }
+        });
+      }, {
+        root: viewerMain,
+        rootMargin: '300px 0px 300px 0px'
+      });
+
+      for (let i = 1; i <= totalPages; i++) {
+        const el = document.getElementById(`scrollSlot-${i}`);
+        if (el) scrollObserver.observe(el);
+      }
+    }
+
+    const renderingScrollPages = new Set();
+
+    function renderScrollPage(pageNum) {
+      if (!pdfDoc) return;
+      if (renderedScrollPages.has(pageNum) || renderingScrollPages.has(pageNum)) return;
+
+      renderingScrollPages.add(pageNum);
+
+      getCachedPage(pageNum).then(page => {
+        const cvs = document.getElementById(`scrollCanvas-${pageNum}`);
+        const pContainer = document.getElementById(`pageContainer-scroll-${pageNum}`);
+        const hlLayer = document.getElementById(`scrollHl-${pageNum}`);
+        if (!cvs || !pContainer) {
+          renderingScrollPages.delete(pageNum);
+          return;
+        }
+
+        const viewport = page.getViewport({ scale: scaleScroll });
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+
+        cvs.width = Math.floor(viewport.width * pixelRatio);
+        cvs.height = Math.floor(viewport.height * pixelRatio);
+        cvs.style.width = Math.floor(viewport.width) + 'px';
+        cvs.style.height = Math.floor(viewport.height) + 'px';
+
+        pContainer.style.width = Math.floor(viewport.width) + 'px';
+        pContainer.style.height = Math.floor(viewport.height) + 'px';
+
+        const ctx = cvs.getContext('2d', { alpha: false });
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+        if (activeScrollTasks.has(pageNum)) {
+          try {
+            activeScrollTasks.get(pageNum).cancel();
+          } catch(e) {}
+          activeScrollTasks.delete(pageNum);
+        }
+
+        const renderTask = page.render({
+          canvasContext: ctx,
+          viewport: viewport
+        });
+        activeScrollTasks.set(pageNum, renderTask);
+
+        renderTask.promise.then(() => {
+          activeScrollTasks.delete(pageNum);
+          renderingScrollPages.delete(pageNum);
+          renderedScrollPages.add(pageNum);
+          renderHighlightsInLayer(hlLayer, pageNum);
+        }).catch(err => {
+          activeScrollTasks.delete(pageNum);
+          renderingScrollPages.delete(pageNum);
+          if (err && err.name !== 'RenderingCancelledException') {
+            console.warn('Scroll render error:', err);
+          }
+        });
+      }).catch(() => {
+        renderingScrollPages.delete(pageNum);
+      });
+    }
+
+    // Scroll listener to update page indicator dynamically
+    viewerMain.addEventListener('scroll', () => {
+      if (currentMode !== 'scroll' || !pdfDoc) return;
+      const centerLine = viewerMain.scrollTop + (viewerMain.clientHeight / 2);
+      let activeP = 1;
+
+      for (let i = 1; i <= totalPages; i++) {
+        const slot = document.getElementById(`scrollSlot-${i}`);
+        if (slot) {
+          const top = slot.offsetTop;
+          const bottom = top + slot.offsetHeight;
+          if (centerLine >= top && centerLine <= bottom) {
+            activeP = i;
+            break;
+          }
+        }
+      }
+      if (activeP !== currentPage) {
+        currentPage = activeP;
+        updateNavScroll();
+      }
+    }, { passive: true });
+
+    function updateNavScroll() {
+      pageIndicator.innerText = `${currentPage} / ${totalPages}`;
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    function scrollToPage(p) {
+      if (p < 1) p = 1;
+      if (p > totalPages) p = totalPages;
+      currentPage = p;
+      updateNavScroll();
+      const slot = document.getElementById(`scrollSlot-${p}`);
+      if (slot) {
+        slot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // Mode 2: Two Pages Book Flip (3D)
+    function initBookView() {
+      if (currentBookSpread % 2 === 0) currentBookSpread--; // Keep spread odd (1, 3, 5...)
+      renderBookSpread(currentBookSpread);
+    }
+
+    function renderPageToCanvas(pageNumber, canvasEl, width, height) {
+      return new Promise((resolve) => {
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        const targetW = Math.floor(width * pixelRatio);
+        const targetH = Math.floor(height * pixelRatio);
+
+        if (pageNumber > totalPages || pageNumber < 1) {
+          if (canvasEl.width !== targetW || canvasEl.height !== targetH) {
+            canvasEl.width = targetW;
+            canvasEl.height = targetH;
+            canvasEl.style.width = width + 'px';
+            canvasEl.style.height = height + 'px';
+          }
+          const ctx = canvasEl.getContext('2d');
+          ctx.fillStyle = '#f8f8f9';
+          ctx.fillRect(0, 0, targetW, targetH);
+          resolve(canvasEl);
+          return;
+        }
+
+        getCachedPage(pageNumber).then(page => {
+          const unscaled = page.getViewport({ scale: 1.0 });
+          const scale = width / unscaled.width;
+          const viewport = page.getViewport({ scale: scale });
+
+          // Render to offscreen buffer first to eliminate any white blink/flash
+          const offscreen = document.createElement('canvas');
+          offscreen.width = targetW;
+          offscreen.height = targetH;
+          const offCtx = offscreen.getContext('2d', { alpha: false });
+          offCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+          page.render({
+            canvasContext: offCtx,
+            viewport: viewport
+          }).promise.then(() => {
+            if (canvasEl.width !== targetW || canvasEl.height !== targetH) {
+              canvasEl.width = targetW;
+              canvasEl.height = targetH;
+              canvasEl.style.width = width + 'px';
+              canvasEl.style.height = height + 'px';
+            }
+            const ctx = canvasEl.getContext('2d', { alpha: false });
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(offscreen, 0, 0);
+            resolve(offscreen);
+          }).catch(() => resolve(null));
+        }).catch(() => resolve(null));
+      });
+    }
+
+    function calculateBookDimensions(page) {
+      const unscaled = page.getViewport({ scale: 1.0 });
+      const availW = Math.max(100, viewerMain.clientWidth - 40);
+      const availH = Math.max(100, viewerMain.clientHeight - 40);
+      const twoPageRatio = (unscaled.width * 2) / unscaled.height;
+      let bookW, bookH;
+
+      if (availW / availH > twoPageRatio) {
+        bookH = availH * scaleBook;
+        bookW = bookH * twoPageRatio;
+      } else {
+        bookW = availW * scaleBook;
+        bookH = bookW / twoPageRatio;
+      }
+
+      const singlePageW = Math.floor(bookW / 2);
+      bookH = Math.floor(bookH);
+      return { singlePageW, bookH };
+    }
+
+    function renderBookSpread(leftPageNum) {
+      if (!pdfDoc) return;
+      getCachedPage(1).then(firstPage => {
+        const { singlePageW, bookH } = calculateBookDimensions(firstPage);
+
+        bookViewport.style.width = (singlePageW * 2) + 'px';
+        bookViewport.style.height = bookH + 'px';
+        bookLeft.style.width = singlePageW + 'px';
+        bookLeft.style.height = bookH + 'px';
+        bookRight.style.width = singlePageW + 'px';
+        bookRight.style.height = bookH + 'px';
+
+        const rightPageNum = leftPageNum + 1;
+
+        renderPageToCanvas(leftPageNum, bookCanvasLeft, singlePageW, bookH).then(() => {
+          renderHighlightsInLayer(bookHlLeft, leftPageNum);
+        });
+
+        renderPageToCanvas(rightPageNum, bookCanvasRight, singlePageW, bookH).then(() => {
+          renderHighlightsInLayer(bookHlRight, rightPageNum);
+        });
+
+        updateNavBook();
+      });
+    }
+
+    function updateNavBook() {
+      const rightPage = Math.min(currentBookSpread + 1, totalPages);
+      pageIndicator.innerText = totalPages === 1 ? 'Page 1 / 1' : `Pages ${currentBookSpread}-${rightPage} / ${totalPages}`;
+      prevBtn.disabled = currentBookSpread <= 1;
+      nextBtn.disabled = currentBookSpread + 1 >= totalPages;
+    }
+
+    // Ultra-Smooth 3D Book Page Turn: Next (Forward) - 100% Zero-Blink
+    function flipBookNext() {
+      if (isFlipping || !pdfDoc) return;
+      const nextSpreadLeft = currentBookSpread + 2;
+      if (nextSpreadLeft > totalPages) return;
+
+      isFlipping = true;
+      getCachedPage(1).then(firstPage => {
+        const { singlePageW, bookH } = calculateBookDimensions(firstPage);
+        const oldRight = currentBookSpread + 1;
+        const newLeft = nextSpreadLeft;
+        const newRight = nextSpreadLeft + 1;
+
+        // Pre-render newLeft and newRight before starting animation so there is zero flicker
+        Promise.all([
+          renderPageToCanvas(oldRight, flipCanvasFront, singlePageW, bookH),
+          renderPageToCanvas(newLeft, flipCanvasBack, singlePageW, bookH),
+          renderPageToCanvas(newRight, bookCanvasRight, singlePageW, bookH)
+        ]).then(() => {
+          bookFlipSheet.className = 'book-flip-sheet flip-forward';
+          bookFlipSheet.style.width = singlePageW + 'px';
+          bookFlipSheet.style.height = bookH + 'px';
+          bookFlipSheet.style.transition = 'none';
+          bookFlipSheet.style.transform = 'rotateY(0deg)';
+          bookFlipSheet.style.display = 'block';
+
+          // Reset initial lighting for forward turn
+          flipShadowFront.style.transition = 'none';
+          flipShadowFront.style.opacity = '0';
+          flipShadowBack.style.transition = 'none';
+          flipShadowBack.style.opacity = '0.7';
+
+          bookFlipSheet.offsetHeight; // Force reflow
+
+          const flipDuration = 560;
+          const flipCurve = 'cubic-bezier(0.25, 1, 0.45, 1)';
+
+          bookFlipSheet.style.transition = `transform ${flipDuration}ms ${flipCurve}`;
+          bookFlipSheet.style.transform = 'rotateY(-180deg)';
+
+          // Smooth lighting as front lifts up
+          flipShadowFront.style.transition = `opacity ${Math.round(flipDuration * 0.48)}ms ease-in`;
+          flipShadowFront.style.opacity = '0.75';
+
+          // Smooth lighting as back descends to the left page
+          setTimeout(() => {
+            if (!isFlipping) return;
+            flipShadowBack.style.transition = `opacity ${Math.round(flipDuration * 0.52)}ms ease-out`;
+            flipShadowBack.style.opacity = '0';
+          }, Math.round(flipDuration * 0.44));
+
+          let finished = false;
+          const completeFlip = () => {
+            if (finished) return;
+            finished = true;
+            currentBookSpread = nextSpreadLeft;
+            currentPage = currentBookSpread;
+
+            const ctxLeft = bookCanvasLeft.getContext('2d');
+            ctxLeft.setTransform(1, 0, 0, 1, 0, 0);
+            ctxLeft.drawImage(flipCanvasBack, 0, 0);
+
+            bookFlipSheet.style.display = 'none';
+            bookFlipSheet.style.transition = 'none';
+            bookFlipSheet.style.transform = 'rotateY(0deg)';
+            flipShadowFront.style.opacity = '0';
+            flipShadowBack.style.opacity = '0';
+
+            renderHighlightsInLayer(bookHlLeft, currentBookSpread);
+            renderHighlightsInLayer(bookHlRight, newRight);
+            updateNavBook();
+            isFlipping = false;
+          };
+
+          bookFlipSheet.addEventListener('transitionend', completeFlip, { once: true });
+          setTimeout(completeFlip, flipDuration + 40);
+        });
+      });
+    }
+
+    // Ultra-Smooth 3D Book Page Turn: Prev (Backward) - 100% Zero-Blink
+    function flipBookPrev() {
+      if (isFlipping || !pdfDoc) return;
+      if (currentBookSpread <= 1) return;
+
+      const prevSpreadLeft = Math.max(1, currentBookSpread - 2);
+      isFlipping = true;
+
+      getCachedPage(1).then(firstPage => {
+        const { singlePageW, bookH } = calculateBookDimensions(firstPage);
+        const oldLeft = currentBookSpread;
+        const newLeft = prevSpreadLeft;
+        const newRight = prevSpreadLeft + 1;
+
+        Promise.all([
+          renderPageToCanvas(oldLeft, flipCanvasFront, singlePageW, bookH),
+          renderPageToCanvas(newRight, flipCanvasBack, singlePageW, bookH),
+          renderPageToCanvas(newLeft, bookCanvasLeft, singlePageW, bookH)
+        ]).then(() => {
+          bookFlipSheet.className = 'book-flip-sheet flip-backward';
+          bookFlipSheet.style.width = singlePageW + 'px';
+          bookFlipSheet.style.height = bookH + 'px';
+          bookFlipSheet.style.transition = 'none';
+          bookFlipSheet.style.transform = 'rotateY(-180deg)';
+          bookFlipSheet.style.display = 'block';
+
+          // Reset initial lighting for backward turn
+          flipShadowBack.style.transition = 'none';
+          flipShadowBack.style.opacity = '0';
+          flipShadowFront.style.transition = 'none';
+          flipShadowFront.style.opacity = '0.7';
+
+          bookFlipSheet.offsetHeight;
+
+          const flipDuration = 560;
+          const flipCurve = 'cubic-bezier(0.25, 1, 0.45, 1)';
+
+          bookFlipSheet.style.transition = `transform ${flipDuration}ms ${flipCurve}`;
+          bookFlipSheet.style.transform = 'rotateY(0deg)';
+
+          // Smooth lighting as back lifts up
+          flipShadowBack.style.transition = `opacity ${Math.round(flipDuration * 0.48)}ms ease-in`;
+          flipShadowBack.style.opacity = '0.75';
+
+          // Smooth lighting as front descends to the right page
+          setTimeout(() => {
+            if (!isFlipping) return;
+            flipShadowFront.style.transition = `opacity ${Math.round(flipDuration * 0.52)}ms ease-out`;
+            flipShadowFront.style.opacity = '0';
+          }, Math.round(flipDuration * 0.44));
+
+          let finished = false;
+          const completeFlip = () => {
+            if (finished) return;
+            finished = true;
+            currentBookSpread = prevSpreadLeft;
+            currentPage = currentBookSpread;
+
+            const ctxRight = bookCanvasRight.getContext('2d');
+            ctxRight.setTransform(1, 0, 0, 1, 0, 0);
+            ctxRight.drawImage(flipCanvasBack, 0, 0);
+
+            bookFlipSheet.style.display = 'none';
+            bookFlipSheet.style.transition = 'none';
+            flipShadowBack.style.opacity = '0';
+            flipShadowFront.style.opacity = '0';
+
+            renderHighlightsInLayer(bookHlLeft, currentBookSpread);
+            renderHighlightsInLayer(bookHlRight, newRight);
+            updateNavBook();
+            isFlipping = false;
+          };
+
+          bookFlipSheet.addEventListener('transitionend', completeFlip, { once: true });
+          setTimeout(completeFlip, flipDuration + 40);
+        });
+      });
+    }
+
+    function onBookLeftClick() {
+      if (highlightModeActive) return;
+      flipBookPrev();
+    }
+
+    function onBookRightClick() {
+      if (highlightModeActive) return;
+      flipBookNext();
+    }
+
+    // Bind book mode highlight drag handlers
+    bindHighlightDragEvents(bookLeft, () => currentBookSpread, () => bookHlLeft);
+    bindHighlightDragEvents(bookRight, () => currentBookSpread + 1, () => bookHlRight);
+
+    // Mode 3: Single Page Fit/Slide
+    function initSingleView() {
+      renderSinglePage(currentPage);
+    }
+
+    function calculateFitScaleSingle(page) {
+      const unscaled = page.getViewport({ scale: 1.0 });
+      const paddingX = window.innerWidth <= 768 ? 16 : 40;
+      const paddingY = window.innerWidth <= 768 ? 16 : 32;
+      const availW = Math.max(80, viewerMain.clientWidth - paddingX);
+      const availH = Math.max(80, viewerMain.clientHeight - paddingY);
+
+      const scaleW = availW / unscaled.width;
+      const scaleH = availH / unscaled.height;
+      const fit = Math.min(scaleW, scaleH);
+      return Math.max(0.2, Math.min(fit, 3.5));
+    }
+
+    let isSingleTransitioning = false;
+
+    function renderSinglePage(pageNum, direction) {
+      if (!pdfDoc) return;
+      updateNavSingle();
+
+      if (singleRenderTask) {
+        singleRenderTask.cancel();
+      }
+
+      const outClass = direction === 'next' ? 'turn-slide-left' : (direction === 'prev' ? 'turn-slide-right' : '');
+      const inClass = direction === 'next' ? 'turn-slide-right' : (direction === 'prev' ? 'turn-slide-left' : '');
+
+      if (outClass) {
+        isSingleTransitioning = true;
+        pageContainer.classList.add(outClass);
+      }
+
+      getCachedPage(pageNum).then(page => {
+        if (isFitSingle) {
+          scaleSingle = calculateFitScaleSingle(page);
+        }
+
+        const viewport = page.getViewport({ scale: scaleSingle });
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+
+        pdfCanvas.width = Math.floor(viewport.width * pixelRatio);
+        pdfCanvas.height = Math.floor(viewport.height * pixelRatio);
+
+        const cssW = Math.floor(viewport.width) + 'px';
+        const cssH = Math.floor(viewport.height) + 'px';
+        pdfCanvas.style.width = cssW;
+        pdfCanvas.style.height = cssH;
+
+        pageContainer.style.width = cssW;
+        pageContainer.style.height = cssH;
+
+        const ctx = pdfCanvas.getContext('2d', { alpha: false });
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+        singleRenderTask = page.render({
+          canvasContext: ctx,
+          viewport: viewport
+        });
+
+        singleRenderTask.promise.then(() => {
+          singleRenderTask = null;
+          renderedSingleScale = scaleSingle;
+          pageContainer.style.transform = '';
+          renderHighlightsInLayer(highlightLayer, pageNum);
+
+          if (outClass) {
+            pageContainer.classList.remove(outClass);
+            pageContainer.classList.add(inClass);
+            pageContainer.offsetHeight; // trigger reflow
+            requestAnimationFrame(() => {
+              pageContainer.classList.remove(inClass);
+              setTimeout(() => { isSingleTransitioning = false; }, 240);
+            });
+          }
+        }).catch(err => {
+          if (err && err.name !== 'RenderingCancelledException') {
+            console.warn('Single render error:', err);
+          }
+          if (outClass) {
+            pageContainer.classList.remove(outClass, inClass);
+            isSingleTransitioning = false;
+          }
+        });
+      });
+    }
+
+    function updateNavSingle() {
+      pageIndicator.innerText = `${currentPage} / ${totalPages}`;
+      prevBtn.disabled = currentPage <= 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    // Bind single mode highlight drag handler
+    bindHighlightDragEvents(pageContainer, () => currentPage, () => highlightLayer);
+
+    // Navigation & Zoom Controls
+    function prevPage() {
+      if (currentMode === 'scroll') {
+        scrollToPage(currentPage - 1);
+      } else if (currentMode === 'book') {
+        flipBookPrev();
+      } else {
+        if (currentPage > 1 && !isSingleTransitioning) {
+          currentPage--;
+          renderSinglePage(currentPage, 'prev');
+        }
+      }
+    }
+
+    function nextPage() {
+      if (currentMode === 'scroll') {
+        scrollToPage(currentPage + 1);
+      } else if (currentMode === 'book') {
+        flipBookNext();
+      } else {
+        if (currentPage < totalPages && !isSingleTransitioning) {
+          currentPage++;
+          renderSinglePage(currentPage, 'next');
+        }
+      }
+    }
+
+    // Touch Swipe Gestures for Page Turning (Mobile & Tablet)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    viewerMain.addEventListener('touchstart', (e) => {
+      if (highlightModeActive || e.touches.length > 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+
+    viewerMain.addEventListener('touchend', (e) => {
+      if (highlightModeActive || currentMode === 'scroll') return;
+      if (!touchStartX || !touchStartTime) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const elapsedTime = Date.now() - touchStartTime;
+
+      if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4 && elapsedTime < 600) {
+        if (deltaX < 0) {
+          nextPage(); // swipe left -> turn forward
+        } else {
+          prevPage(); // swipe right -> turn backward
+        }
+      }
+      touchStartX = 0;
+      touchStartY = 0;
+      touchStartTime = 0;
+    }, { passive: true });
+
+    // Zero-Lag Hardware-Accelerated Zoom In/Out/Reset
+    function zoomIn() {
+      if (currentMode === 'scroll') {
+        scaleScroll = Math.min(scaleScroll * 1.2, 3.5);
+        showToast(`Zoom: ${Math.round(scaleScroll * 100)}%`);
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = setTimeout(() => {
+          updateScrollLayout();
+        }, 160);
+      } else if (currentMode === 'book') {
+        scaleBook = Math.min(scaleBook * 1.2, 2.5);
+        showToast(`Zoom: ${Math.round(scaleBook * 100)}%`);
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = setTimeout(() => {
+          renderBookSpread(currentBookSpread);
+        }, 160);
+      } else {
+        isFitSingle = false;
+        scaleSingle = Math.min(scaleSingle * 1.25, 4.0);
+        showToast(`Zoom: ${Math.round(scaleSingle * 100)}%`);
+        // Instant visual GPU scale (0ms latency, zero frame drop)
+        if (renderedSingleScale > 0) {
+          pageContainer.style.transform = `scale(${scaleSingle / renderedSingleScale})`;
+        }
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = setTimeout(() => {
+          renderSinglePage(currentPage);
+        }, 180);
+      }
+    }
+
+    function zoomOut() {
+      if (currentMode === 'scroll') {
+        scaleScroll = Math.max(scaleScroll / 1.2, 0.4);
+        showToast(`Zoom: ${Math.round(scaleScroll * 100)}%`);
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = setTimeout(() => {
+          updateScrollLayout();
+        }, 160);
+      } else if (currentMode === 'book') {
+        scaleBook = Math.max(scaleBook / 1.2, 0.5);
+        showToast(`Zoom: ${Math.round(scaleBook * 100)}%`);
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = setTimeout(() => {
+          renderBookSpread(currentBookSpread);
+        }, 160);
+      } else {
+        isFitSingle = false;
+        scaleSingle = Math.max(scaleSingle / 1.25, 0.3);
+        showToast(`Zoom: ${Math.round(scaleSingle * 100)}%`);
+        if (renderedSingleScale > 0) {
+          pageContainer.style.transform = `scale(${scaleSingle / renderedSingleScale})`;
+        }
+        clearTimeout(zoomDebounceTimer);
+        zoomDebounceTimer = setTimeout(() => {
+          renderSinglePage(currentPage);
+        }, 180);
+      }
+    }
+
+    function resetView() {
+      clearTimeout(zoomDebounceTimer);
+      if (currentMode === 'scroll') {
+        getCachedPage(1).then(page => {
+          const unscaled = page.getViewport({ scale: 1.0 });
+          const availW = Math.max(100, Math.min(viewerMain.clientWidth - 40, 920));
+          scaleScroll = availW / unscaled.width;
+          updateScrollLayout();
+          viewerMain.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+          showToast('<i class="fas fa-compress-arrows-alt"></i> Reset: Fit Page Width');
+        });
+      } else if (currentMode === 'book') {
+        scaleBook = 1.0;
+        renderBookSpread(currentBookSpread);
+        viewerMain.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        showToast('<i class="fas fa-compress-arrows-alt"></i> Reset: Fit 2-Page Book');
+      } else {
+        isFitSingle = true;
+        pageContainer.style.transform = '';
+        viewerMain.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        renderSinglePage(currentPage);
+        showToast('<i class="fas fa-compress-arrows-alt"></i> Reset: Fit 1 Page in Window');
+      }
+    }
+
+    // Desktop Ctrl + MouseWheel / Trackpad Pinch Zoom
+    viewerMain.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          zoomIn();
+        } else {
+          zoomOut();
+        }
+      }
+    }, { passive: false });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevPage();
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        nextPage();
+      } else if (e.key === '+' || e.key === '=') {
+        zoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        zoomOut();
+      } else if (e.key === '0' || e.key === 'r' || e.key === 'R') {
+        resetView();
+      } else if (e.key === 'h' || e.key === 'H') {
+        toggleHighlightMode();
+      }
+    });
+
+    // Window Resize Handler
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!pdfDoc) return;
+        if (currentMode === 'scroll') {
+          updateScrollLayout();
+        } else if (currentMode === 'book') {
+          renderBookSpread(currentBookSpread);
+        } else if (currentMode === 'single' && isFitSingle) {
+          renderSinglePage(currentPage);
+        }
+      }, 150);
+    });
+
+    // Fallback directly to native iframe if PDF.js library fails to load
+    function fallbackToIframe(cleanFile) {
+      console.warn('Activating native PDF viewer fallback');
+      const embedPdfUrl = `${cleanFile}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
+
+      const pdfEmbed = document.getElementById('pdfEmbed');
+      if (window.location.protocol === 'file:' && pdfEmbed) {
+        pdfEmbed.src = cleanFile;
+        pdfEmbed.style.display = 'block';
+        pdfFrame.style.display = 'none';
+      } else {
+        pdfFrame.src = embedPdfUrl;
+        pdfFrame.style.display = 'block';
+        if (pdfEmbed) pdfEmbed.style.display = 'none';
+      }
+
+      scrollContainer.style.display = 'none';
+      bookContainer.style.display = 'none';
+      singleContainer.style.display = 'none';
+      loadingState.style.display = 'none';
+    }
+
+    // --- INITIALIZATION ---
+    function initViewer() {
+      updateModeUI();
+
+      // Sync active highlight color dot in UI
+      document.querySelectorAll('.hl-color-dot').forEach(dot => {
+        dot.classList.toggle('active', dot.dataset.color === currentHighlightColor);
+      });
+
+      if (!fileParam || fileParam === '#' || fileParam.includes('javascript:void') || fileParam.trim() === '') {
+        loadingState.style.display = 'none';
+        errorState.style.display = 'flex';
+        downloadBtn.style.display = 'none';
+        externalBtn.style.display = 'none';
+        document.getElementById('pageNavGroup').style.display = 'none';
+        highlightBtn.style.display = 'none';
+        document.getElementById('modeMenuBtn').style.display = 'none';
+        return;
+      }
+
+      cleanPdfPath = decodeURIComponent(fileParam);
+
+      // Safe download button setup (never downloads HTML page)
+      const downloadFileName = cleanPdfPath.split('/').pop().split('?')[0] || 'document.pdf';
+      downloadBtn.href = cleanPdfPath;
+      downloadBtn.setAttribute('download', downloadFileName);
+
+      downloadBtn.onclick = (e) => {
+        if (!cleanPdfPath || cleanPdfPath === '#' || !cleanPdfPath.toLowerCase().endsWith('.pdf')) {
+          e.preventDefault();
+          showToast('<i class="fas fa-exclamation-circle" style="color: #f87171"></i> PDF download unavailable for this item');
+          return;
+        }
+
+        // On HTTP/HTTPS servers, fetch as binary blob to verify it is NOT an HTML error page
+        if (window.location.protocol.startsWith('http')) {
+          e.preventDefault();
+          showToast('<i class="fas fa-arrow-down"></i> Downloading document...');
+          fetch(cleanPdfPath)
+            .then(res => {
+              const ct = (res.headers.get('content-type') || '').toLowerCase();
+              if (!res.ok || ct.includes('text/html')) {
+                throw new Error('Server returned HTML or 404 instead of PDF');
+              }
+              return res.blob();
+            })
+            .then(blob => {
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = downloadFileName;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+            })
+            .catch(err => {
+              console.warn('Blob download error:', err);
+              // Fallback to direct navigation only if it's the actual PDF
+              window.open(cleanPdfPath, '_blank');
+            });
+        }
+      };
+      externalBtn.href = cleanPdfPath;
+
+      const isFileProtocol = window.location.protocol === 'file:';
+      const isTablet = /iPad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || (/Android/i.test(navigator.userAgent) && !/Mobile/i.test(navigator.userAgent)) || window.innerWidth >= 768;
+      const isSmallPhone = !isFileProtocol && !isTablet && /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      // --- MOBILE: DIRECT STRAIGHT TO GOOGLE DRIVE (Only for small compact smartphones over HTTP/HTTPS; iPads & tablets use full native viewer) ---
+      if (isSmallPhone) {
+        const absoluteUrl = new URL(cleanPdfPath, window.location.href).href;
+        const gDriveUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}`;
+
+        loadingState.style.display = 'none';
+        const mobileRedirectState = document.getElementById('mobileRedirectState');
+        const manualDriveBtn = document.getElementById('manualDriveBtn');
+
+        if (mobileRedirectState) mobileRedirectState.style.display = 'flex';
+        if (manualDriveBtn) manualDriveBtn.href = gDriveUrl;
+
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!isLocalhost) {
+          window.location.replace(gDriveUrl);
+          return;
+        }
+      }
+
+      // If running on local file:// protocol, bypass PDF.js worker/fetch restrictions directly
+      if (isFileProtocol) {
+        fallbackToIframe(cleanPdfPath);
+        return;
+      }
+
+      if (typeof pdfjsLib !== 'undefined') {
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('assets/js/pdf.worker.min.js', window.location.href).href;
+        } catch (e) {
+          console.warn('Worker init warning:', e);
+        }
+
+        const loadingTask = pdfjsLib.getDocument({
+          url: cleanPdfPath,
+          disableAutoFetch: false,
+          disableStream: false
+        });
+
+        loadingTask.promise.then(pdf => {
+          pdfDoc = pdf;
+          totalPages = pdf.numPages;
+          loadingState.style.display = 'none';
+          applyViewMode();
+        }).catch(err => {
+          console.warn('PDF.js loading error:', err);
+          fallbackToIframe(cleanPdfPath);
+        });
+      } else {
+        fallbackToIframe(cleanPdfPath);
+      }
+    }
+
+    initViewer();
+  </script>
+  <script src="assets/js/version-check.js?v=16.7"></script>
+</body>
+</html>
